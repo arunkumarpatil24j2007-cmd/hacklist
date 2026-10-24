@@ -58,6 +58,10 @@ const KNOWN_PLATFORMS: Record<string, KnownPlatformInfo> = {
     name: 'LeetCode',
     description: 'Coding challenges, algorithmic contests, and technical interview problem solving.',
   },
+  'wemakedevs.org': {
+    name: 'WeMakeDevs',
+    description: 'Developer community making quality education accessible, hosting hackathons, mentorship, and tech events.',
+  },
   'hackereconomy.com': {
     name: 'Hacker Economy',
     description: 'Hackathons, startup bounties, and technical grant programs for creative developers.',
