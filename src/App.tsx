@@ -8,16 +8,17 @@ import { AddPlatformModal } from './components/AddPlatformModal';
 import { EditPlatformModal } from './components/EditPlatformModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { InfoModal } from './components/InfoModal';
+import { DatabaseModal } from './components/DatabaseModal';
 import type { Platform, ModalType } from './types';
 import {
-  getSavedPlatforms,
-  addPlatformToStorage,
-  updatePlatformInStorage,
-  deletePlatformFromStorage,
-} from './utils/storage';
+  subscribeToPlatforms,
+  addPlatform as addPlatformToDb,
+  updatePlatform as updatePlatformInDb,
+  deletePlatform as deletePlatformFromDb,
+} from './services/platformsService';
 
 export const App: React.FC = () => {
-  // CRITICAL REQUIREMENT: Initial state contains ZERO platforms
+  // CRITICAL REQUIREMENT: Initial state starts with ZERO platforms
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -25,10 +26,15 @@ export const App: React.FC = () => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
 
-  // Load from localStorage on mount
+  // Subscribe to real-time Cloud Database / local cache updates
   useEffect(() => {
-    const loaded = getSavedPlatforms();
-    setPlatforms(loaded);
+    const unsubscribe = subscribeToPlatforms((loaded) => {
+      setPlatforms(loaded);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Handlers
@@ -52,18 +58,34 @@ export const App: React.FC = () => {
     setActiveModal('contact');
   };
 
+  const handleOpenDatabase = () => {
+    setActiveModal('database');
+  };
+
   const handleCloseModal = () => {
     setActiveModal(null);
     setSelectedPlatform(null);
   };
 
   const handleAddPlatform = (newPlatformData: Omit<Platform, 'id' | 'createdAt'>) => {
-    const result = addPlatformToStorage(newPlatformData, platforms);
-    if (result.success) {
-      setPlatforms(result.newPlatforms);
-      return { success: true };
+    // Check for duplicate URLs across currently loaded platforms
+    const isDuplicate = platforms.some(
+      (p) =>
+        p.url.toLowerCase() === newPlatformData.url.toLowerCase() ||
+        p.domain.toLowerCase() === newPlatformData.domain.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return { success: false, error: 'This platform URL or domain is already in HackList.' };
     }
-    return { success: false, error: result.error };
+
+    addPlatformToDb(newPlatformData, platforms).then((result) => {
+      if (result.newPlatforms) {
+        setPlatforms(result.newPlatforms);
+      }
+    });
+
+    return { success: true };
   };
 
   const handleEditPlatform = (platform: Platform) => {
@@ -71,9 +93,11 @@ export const App: React.FC = () => {
     setActiveModal('edit');
   };
 
-  const handleSaveEdit = (id: string, updates: Partial<Pick<Platform, 'name' | 'description'>>) => {
-    const updated = updatePlatformInStorage(id, updates, platforms);
-    setPlatforms(updated);
+  const handleSaveEdit = async (id: string, updates: Partial<Pick<Platform, 'name' | 'description'>>) => {
+    await updatePlatformInDb(id, updates, platforms);
+    setPlatforms((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+    );
   };
 
   const handleDeletePlatform = (platform: Platform) => {
@@ -81,9 +105,9 @@ export const App: React.FC = () => {
     setActiveModal('delete');
   };
 
-  const handleConfirmDelete = (id: string) => {
-    const updated = deletePlatformFromStorage(id, platforms);
-    setPlatforms(updated);
+  const handleConfirmDelete = async (id: string) => {
+    await deletePlatformFromDb(id, platforms);
+    setPlatforms((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handleExploreClick = () => {
@@ -125,6 +149,7 @@ export const App: React.FC = () => {
         onOpenAbout={handleOpenAbout}
         onOpenSuggest={handleOpenSuggest}
         onOpenContact={handleOpenContact}
+        onOpenDatabase={handleOpenDatabase}
       />
 
       {/* Modals & Dialogs */}
@@ -153,6 +178,11 @@ export const App: React.FC = () => {
         isOpen={['about', 'resources', 'suggest', 'contact'].includes(activeModal || '')}
         onClose={handleCloseModal}
         onOpenSubmit={handleOpenSubmit}
+      />
+
+      <DatabaseModal
+        isOpen={activeModal === 'database'}
+        onClose={handleCloseModal}
       />
     </div>
   );

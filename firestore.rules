@@ -1,0 +1,50 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: platforms
+// Document ID: platform_{timestamp}_{random}
+// Fields:
+//   - id: string (required) - unique identifier matching document ID
+//   - url: string (required, 5-500 chars) - web URL of the hackathon platform
+//   - name: string (required, 1-100 chars) - display name of the platform
+//   - description: string (required, 1-1000 chars) - short summary of the platform
+//   - domain: string (required, 2-100 chars) - normalized website domain
+//   - logoUrl: string (optional, 0-500 chars) - resolved logo image URL
+//   - createdAt: number (required) - creation timestamp
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Validation function for platform records
+    function isValidPlatform(data) {
+      return data.keys().hasAll(['id', 'url', 'name', 'description', 'domain', 'createdAt'])
+        && data.id is string && data.id.size() >= 3 && data.id.size() <= 100
+        && data.url is string && data.url.size() >= 5 && data.url.size() <= 500
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.description is string && data.description.size() <= 1000
+        && data.domain is string && data.domain.size() >= 2 && data.domain.size() <= 100
+        && data.createdAt is number
+        && (!('logoUrl' in data) || data.logoUrl is string);
+    }
+
+    // Platforms collection: open read for public directory, validated writes
+    match /platforms/{platformId} {
+      allow read: if true;
+      allow create: if isValidPlatform(request.resource.data)
+                    && request.resource.data.id == platformId;
+      allow update: if isValidPlatform(request.resource.data)
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if true;
+    }
+  }
+}

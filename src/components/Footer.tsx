@@ -5,12 +5,14 @@ interface FooterProps {
   onOpenAbout: () => void;
   onOpenSuggest: () => void;
   onOpenContact: () => void;
+  onOpenDatabase: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenAbout,
   onOpenSuggest,
   onOpenContact,
+  onOpenDatabase,
 }) => {
   return (
     <footer className="footer-wrap" role="contentinfo">
@@ -41,6 +43,13 @@ export const Footer: React.FC<FooterProps> = ({
             onClick={onOpenSuggest}
           >
             Suggest a Platform
+          </button>
+          <button
+            type="button"
+            className="footer-link"
+            onClick={onOpenDatabase}
+          >
+            Database
           </button>
           <button
             type="button"

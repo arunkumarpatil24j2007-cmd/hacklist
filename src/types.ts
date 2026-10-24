@@ -8,4 +8,4 @@ export interface Platform {
   createdAt: number;
 }
 
-export type ModalType = 'submit' | 'edit' | 'delete' | 'about' | 'resources' | 'suggest' | 'contact' | null;
+export type ModalType = 'submit' | 'edit' | 'delete' | 'about' | 'resources' | 'suggest' | 'contact' | 'database' | null;
